@@ -230,3 +230,81 @@ std::size_t CTextBlock::length() const{
 一般情况下，编译器会为类合成下列函数：
 * **default构造函数**
 * **copy构造函数**：
+
+## 条款27：尽量少做转型动作
+
+转型分类：
+
+* C风格的转型
+    ```c++
+    (T)expression   //将expression转型为T
+    T(expression)   //将expression转型为T
+    ```
+* C++提供的新式转型
+    ```c++
+    const_cast<T>(expression)
+    dynamic_cast<T>(expression)
+    reinterpret_cast<T>(expression)
+    static_cast<T>(expression)
+    ```
+    - **static_cast**：只要不包含底层const，都可以使用。适合将较大算术类型转换成较小算术类型
+    - **const_cast**：只能改变底层const，例如指向const的指针(指向的对象不一定是常量，但是无法通过指针修改)​，如果指向的对象是常量，则这种转换在修改对象时，结果未定义
+    - **reinterpret_cast**：通常为算术对象的位模式提供较低层次上的重新解释。如将int\*转换成char\*。很危险！
+    - **dynamic_cast**：一种动态类型识别。转换的目标类型，即type，是指针或者左右值引用，主要用于基类指针转换成派生类类型的指针(或引用)，通常需要知道转换源和转换目标的类型。如果​​转换失败，返回0（转换目标类型为指针类型时）或抛出bad_cast异常（转换目标类型为引用类型时）
+
+应该尽可能使用新式转型：
+
+1. 它们很容易在代码中被辨别出来（无论是人工还是使用工具如grep），因而得以简化”找出类型系统在哪个地点被破坏“的过程
+2. 各转型动作的目标越窄化，编译器越可能诊断出错误的运用
+
+**尽量少做转型**：
+
+1. **转型不只是告诉编译器把某种类型视为另一种类型这么简单。任何一个转型动作往往令编译器编译出运行期间执行的代码**
+    ```c++
+    //示例一
+    int x,y;
+    ...
+    double d = static_cast<double>(x)/y;
+    //示例二
+    class Base {...};
+    class Derived : public Base {...};
+    Derived d;
+    Base *pd = &d;  //隐式地将Derived*转换为Base*
+    ```
+
+* 在示例一中：int转型为double几乎肯定会产生一些代码，因为在大部分体系结构中，int的底层表述不同于double的底层表述
+* 在示例二中：会有个偏移量在运行期被实施于Derived\*指针身上，用以取得正确的Base\*地址
+
+2. **很容易写出似是而非的代码**
+```
+    class Window{
+    public:
+        virtual void onResize() {...}
+        ...
+    }
+    //错误的做法
+    class SpecialWindow: public Window{
+    public:
+        virtual void onResize(){
+            static_cast<Window>(*this).onResize();
+            ...  //这里进行SpecialWindow专属行为
+        }
+        ...
+    }
+    //正确的做法
+    class SpecialWindow: public Window{
+    public:
+        virtual void onResize(){
+            Window::onResize();  //调用Window::onResize作用于*this身上
+            ...  //这里进行SpecialWindow专属行为
+        }
+        ...
+    }
+    ```
+3. **继承中的类型转换效率低**
+    * C++通过dynamic_cast实现继承中的类型转换，dynamic_cast的大多数实现效率都是相当慢的。因此，应该避免继承中的类型转换。
+    一般需要dynamic_cast，通常是因为想在一个认定为derived class对象身上执行derived class操作，但是拥有的是一个”指向base“的指针或引用。这种情况下有2种办法可以避免转型：
+        - **使用容器并在其中存储直接指向derived class对象的指针**：这种做法无法在同一个容器内存储指针”指向所有可能的各种派生类“。如果真要处理多种类型，可能需要多个容器，它们都必须具备类型安全性
+        - **将derived class中的操作上升到base class内，成为virtual函数，base class提供一份缺省实现**：缺省实现代码可能是个馊主意，条款34中有分析，但是也比使用dynamic_cast来转型要好
+
+
