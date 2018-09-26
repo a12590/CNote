@@ -86,4 +86,6 @@
 
  * **五.STL**
     * 1）[顺序容器与关联容器的比较？](https://blog.csdn.net/JIEJINQUANIL/article/details/51175858)[有哪些顺序容器与关联容器？](../pic/stl-4-1.jpeg)
-    * 2）[vector底层的实现]
+    * 2）[vector底层的实现](../C++/STL%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90.md#1vector)（迭代器类型为随机迭代器）？insert具体做了哪些事？[resize()](../C++/tass-sgi-stl-2.91.57-source/stl_vector.h#L209)调用的是什么？
+    * 3）vector的push_back要注意什么（大量调用会伴随大量的拷贝构造与析构，内存分配与释放）
+

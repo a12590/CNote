@@ -86,3 +86,43 @@ vector维护的是一个连续线性空间，所以无论其元素类型为何�
 operator\*，operator->，operator++，operator--，operator+，operator-，operator+=，operator-=，普通指针天生就具备。
 vector支持随机存取，而普通指针正有着这样的能力。所以，vector提供的是Random Access Iterators：
 
+```
+template <class T,class Alloc = alloc>
+class vector{
+public:
+    typedef T               value_type;
+    typedef value_type*     iterator;   //vector的迭代器时普通指针
+...
+};
+```
+
+### 1.2 分配器
+
+vector缺省使用alloc作为空间分配器，并据此另外定义了一个data_allocator，为的是更方便以元素大小为配置单位：
+
+```
+template<class T,class Alloc = alloc>
+class vector{
+protected:
+    typedef simple_alloc<value_type,Alloc> data_allocator;
+...
+};
+```
+
+因此，data_allocator::allocate(n)表示分配n个元素空间
+
+### 1.3 vector操作的实现
+
+常见的vector操作包括：
+
+* [vector(size_type n,const T &value)](tass-sgi-stl-2.91.57-source/stl_vector.h#L98)
+    - [fill_initialize(size_type n,const T &value)](tass-sgi-stl-2.91.57-source/stl_vector.h#L98)
+        + [allocate_and_fill(size_type n, const T& x)](tass-sgi-stl-2.91.57-source/stl_vector.h#L213)
+* [push_back(const T &x)](tass-sgi-stl-2.91.57-source/stl_vector.h#L144)
+    - [insert_aux(iterator position,const T &x)](tass-sgi-stl-2.91.57-source/stl_vector.h#L323)
+* [pop_back()](tass-sgi-stl-2.91.57-source/stl_vector.h#L186)
+* [erase(iterator first, iterator last)](tass-sgi-stl-2.91.57-source/stl_vector.h#L197)
+* [erase(iterator position)](tass-sgi-stl-2.91.57-source/stl_vector.h#L190)
+* [insert(iterator position, size_type n, const T& x)](tass-sgi-stl-2.91.57-source/stl_vector.h#L361)
+
+**插入操作可能造成vector的3个指针重新配置，导致原有的迭代器全部失效**
