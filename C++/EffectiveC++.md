@@ -231,6 +231,43 @@ std::size_t CTextBlock::length() const{
 * **default构造函数**
 * **copy构造函数**：
 
+## 条款09：绝不在构造和析构过程中调用virtual函数
+
+如果希望在继承体系中根据类型在构建对象时表现出不同行为，可以会想到在基类的构造函数中调用一个虚函数：
+
+```
+class Transaction {                           //所有交易的基类
+public:
+    Transaction(){
+        ...
+        logTransaction();
+    }
+    virtual void logTransaction() const = 0;  //做出一份因类型不同而不同的日志记录
+};
+
+class BuyTransaction: public Transaction {        //派生类
+public:
+    virtual void logTransaction() const;
+};
+
+class SellTransaction: public Transaction {      //派生类
+public:
+    virtual void logTransaction() const;
+};
+
+```
+
+但是最终调用的virtual函数都是基类的版本。同时，因为是纯虚函数，除非定义该函数，否则将报链接错误
+
+**在子类构造期间，virtual函数绝不会下降到派生类阶层。取而代之，对象的作为就像隶属基类类型一样。即派生类对象的基类构造期间，对象的类型是基类而不是派生类；
+除此之外，若使用运行期类型信息**（如dynamic_cast和typeid），也会把对象视为基类类型（这样对待是合理的：因为子类部分尚未初始化，如果调用的是子类的虚函数，通常会访问子类部分的数据，会引发安全问题）
+
+**同样的道理也适用于析构函数。一旦派生类析构函数开始执行，对象内的派生类成员变量便呈现未定义值，所以C++视它们仿佛不再存在。进入基类析构函数后对象就成为一个基类对象**
+
+如果希望实现最初的功能，即根据类型产生不同日志记录，那么可以在派生类的成员初始化列表中，向基类传递一些类型相关的信息，基类构造函数根据这些信息生成不同的日志记录，此时日志记录的生成函数不再是virtual函数
+
+<br>
+
 ## 条款27：尽量少做转型动作
 
 转型分类：
@@ -307,4 +344,255 @@ std::size_t CTextBlock::length() const{
         - **使用容器并在其中存储直接指向derived class对象的指针**：这种做法无法在同一个容器内存储指针”指向所有可能的各种派生类“。如果真要处理多种类型，可能需要多个容器，它们都必须具备类型安全性
         - **将derived class中的操作上升到base class内，成为virtual函数，base class提供一份缺省实现**：缺省实现代码可能是个馊主意，条款34中有分析，但是也比使用dynamic_cast来转型要好
 
+## 条款34：区分接口继承和实现继承
+
+> 纯虚函数一般作为接口，基类一般不提供定义，但是基类可以为纯虚函数提供定义。派生类必须声明纯虚函数，如果想要使用纯虚函数，派生类必须提供一份定义，即使基类已经为该纯虚函数提供定义。如果派生类不提供定义，仍然是一个抽象基类。
+
+1. **声明一个pure virtual函数的目的是为了让derived classes只继承函数接口**
+2. **声明（非纯）impure virtual函数的目的，是让derived classes继承该函数的接口和缺省实现**
+3. **声明non-virtual函数的目的，是为了让derived classes继承函数的接口和一份强制性的实现
+
+### 1）pure virtual函数
+
+如果某个操作不同派生类应该表现出不同行为，并且没有相同的缺省实现，那么应该使用pure virtual函数，此时派生类只继承接口
+
+### 2）impure virtual函数
+
+如果某个操作不同派生类应该表现出不同行为，并且具有相同的缺省实现，那么应该使用impure virtual函数，此时派生类继承接口和缺省实现
+
+**但是，允许impure virtual函数同时指定函数声明和缺省行为，却可能造成危险：假设引入了一个新的派生类，但是缺省行为并不适用于新的派生类，而新的派生类忘记重新定义新的行为，那么调用该操作将表现出缺省行为，这是不合理的**
+
+```
+class Airplane{
+public:
+    virtual void fly(){}
+};
+class ModelA:public Airplane{}
+class ModelB:public Airplane{}
+class ModelC:public Airplane{}
+Airplane *p = new ModelC;
+p->fly();
+```
+
+a) 要避免这种错误，可以将fly改为pure virtual函数，并且将缺省的飞行行为实现为一个protected函数：
+
+```
+class Airplane{
+public:
+    virtual void fly() = 0;
+//这是合理的，因为它是Airplane及其derived classes的实现细目。乘客应该只在意飞机能不能飞，不在意它怎么飞
+protected:
+    //non-virtual函数，因为没有任何一个派生类应该重新定义缺省行为
+    void defaultFly(){...}
+}
+class ModelA: public Airplane{
+public:
+    virtual void fly(){defaultFly();}
+}
+class ModelB: public Airplane{
+public:
+    virtual void fly(){defaultFly();}
+}
+```
+
+此时，fly变成了pure virtual函数，首先，飞机C必须声明fly函数，如果需要使用，必须为其定义。那么就可以防止因为忘记定义而引起的错误
+
+b) 有人反对以不同函数分别提供接口和缺省实现，像上面的fly和defaultFly。因为他们关心因过渡雷同函数名称而引起的class命名空间污染问题。那么可以将缺省的行为定义在fly中，即为fly实现一份缺省的定义：
+
+```
+class Airplane{
+public:
+    virtual void fly() = 0;
+};
+void Airplane::fly(){
+    // 缺省的fly代码
+}
+
+class ModelA: public Airplane{
+public:
+    virtual void fly(){
+        Airplane::fly();
+    }
+};
+```
+
+由于任何派生类想要使用pure virtual函数都必须提供一份定义,那么如果想要使用缺省行为，可以直接在定义中转调用基类的实现。否则，可以定制特殊的行为。因为是纯虚函数，只要不定义就无法使用，因此也可以避免前面的问题
+
+### 3）non-virtual函数
+
+如果某个操作在整个体系中，应该表现出一致的行为，那么应该使用non-virtual函数。此时派生类继承接口和一份强制性实现
+
+<br>
+
+## 条款35：考虑virtual函数以外的其他选择
+
+>
+
+## 条款36：绝不重新定义继承而来的non-virtual函数
+
+从规范上说，[条款34](#条款34区分接口继承和实现继承)提到，如果某个操作在整个继承体系应该是不变的,那么使用non-virtual函数，此时派生类从基类继承接口以及一份强制实现。如果派生类希望表现出不同行为，那么应该使用virtual函数
+
+另一方面，假设真的重新定义了继承而来的non-virtual函数，会表现出下列令人困惑的情况：
+
+```
+class B{
+public:
+    void mf();
+};
+
+class D:public B{
+public:
+    void mf();
+}
+
+D x;
+B *pB = &x;
+D *pD = &x;
+
+pB->mf();
+pD->mf();
+```
+
+你可能会觉得因为pB和pD指向的是相同的对象，因此调用的non-virtual函数也应该相同，但是事实并非如此。因为**non-virtual函数是静态绑定**，因此实际上调用的函数由指针或引用决定
+
+<br>
+
+## 条款37：绝不重新定义继承而来的缺省参数值
+
+[条款36](#条款36绝不重新定义继承而来的non-virtual函数)论述了non-virtual函数不应该被重新定义，那么non-virtual函数中的参数也就不存在被重新定义的机会。因此这里主要针对的是virtual函数
+
+**原因就在于，virtual函数是动态绑定，而缺省参数值却是静态绑定**。所以你可能调用了一个派生类的virtual函数，但是使用到的缺省参数，却是基类的
+
+```
+class Shape{
+public:
+    enum ShapeColor {Red,Green,Blue};
+    virtual void draw(ShapeColor color = Red) const = 0;
+};
+
+class Rectangle : public Shape {
+public:
+    virtual void draw(ShapeColor color = Green) const;
+    };
+
+    class Circle : public Shape {
+    public:
+        virtual void draw(ShapeColor color) const;
+        ...
+    };
+
+Rectangle r;
+Circle c;
+r.draw();// 调用Rectangle::draw，静态类型为Rectangle，所以缺省参数为Shape::Green
+//c.draw();         //调用Circle::draw，静态类型为Circle，没有缺省参数，因此错误，必须显式指定！
+
+Shape *pr = &r;
+Shape *pc = &c;
+
+// 以下为容易引起困惑的地方，函数与参数不一致
+pr->draw(); // 调用Rectangle::draw,但是静态类型为Shape，所以缺省参数Shape::Red
+pc->draw();         //调用Shape::draw，但是静态类型为Shape，所以缺省参数Shape::Red
+```
+
+但是，即使派生类严格遵循基类的缺省参数，也存在问题：当基类的缺省参数发生变化时，派生类的所有缺省参数也需要跟着修改。因此，**本质在于，不应该在virtual函数中使用缺省参数**，如果有这样的需求，那么这种场景就适合使用[条款35](#)中，public virtual函数的几种替代方案，比如NVI手法：
+
+
+## 条款38：通过复合塑模出has-a或“根据某物实现出”
+
+> 复合是类型间的一种关系，当某种类型的对象含有另一种类型的对象，便是这种关系
+
+复合意味着has-a(有一个)或is-implemented-in-terms-of(根据某物实现出)
+
+* has-a：
+    ```
+    class Address {...};
+        class PhoneNumber {...};
+        class Person{
+        public:
+            ...
+        private:
+            std::string name;
+            Address address;
+            PhoneNumber voiceNumber;
+            PhoneNumber faxNumber;
+        };
+    ```
+
+ * 根据某物实现出：
+     ```
+     template <class T, class Sequence = deque<T> >
+     class stack{
+     protected:
+           Sequence c;   //底层容器
+     }
+     ```
+
+上面两者情况都应该使用复合，而不是public继承。在has-a中，每个人肯定不是一个地址，或者电话。显然不能是is-a的关系。而对于后者，由于每个栈只能从栈顶压入弹出元素，而队列不同，is-a的性质是所有对基类为true的操作，对派生类也应该为true。所以stack也不应该通过public继承deque来实现，因此使用复合
+
+## 条款39：明智而审慎地使用private继承
+
+**private继承和public继承的不同之处**
+
+* **编译器不会把子类对象转换为父类对象**
+```
+class Person{}
+class Student:public Person{} // private继承
+void eat(const Person& p); // 任何人都会吃
+Person p; // p是人
+Student s; // s 是学生
+eat(p); // 没问题，p是人，会吃
+eat(s);  // 错误！难道学生不是人？！
+```
+
+如果使用public继承，编译器在必要的时候可以将Student隐式转换成Person，但是private继承时不会，所以eat(s)调用失败。从这个例子中表达了，private继承并不表现出is-a的关系。实际上**private表现出的是"is-implemented-in-terms-of"的关系**
+
+* **父类成员（即使是public、protected）都变成了private**
+
+[条款38](#条款38通过复合塑模出has-a或根据某物实现出)提到，复合也是可以表现出"is-implemented-in-terms-of"的关系，那么两者有什么区别？
+
+### 1）private继承
+
+假设Widget类需要执行周期性任务，于是希望继承Timer的实现。因为Widget不是一个Timer，所以选择private继承
+
+```
+class Timer {
+public:
+    explicit Timer(int tickFrequency);
+    virtual void onTick() const;          // 每滴答一次，该函数就被自动调用一次
+};
+
+class Widget:private Timer{
+private:
+    virtual void onTick() const; // 查看Widget的数据...等等
+};
+```
+
+在Widget中重写虚函数onTick，使得Widget可以周期性地执行某个任务
+
+通过private继承来表现"is-implemented-in-terms-of"关系实现非常简单，而且下列情况也只能使用这种方式：
+
+* 当Widget需要访问Timer的protected成员时。因为对象组合后只能访问public成员，而private集成后可以访问protected成员
+* 当Widget需要重写Timer的虚函数时。比如上面的例子中，需要重写onTick。单纯的复合做不到
+
+### 2）复合
+
+如果使用复合，上面的例子可以这样实现：
+
+```
+class Widget{
+private:
+    class WidgetTimer: public Timer{
+    public:
+        virtual void onTick() const;
+    };
+    WidgetTimer timer;
+};
+```
+
+通过复合实现"is-implemented-in-terms-of"关系，实现较为复杂，但是有以下优点：
+
+* 如果希望禁止Widget的子类重定义onTick。因为派生类无法访问私有的WidgetTimer类
+* 可以减小Widget和Timer的编译依赖。如果是private继承，在定义Widget的文件中势必需要引入#include"Timer.h"。但如果采用复合的方式，可以把WidgetTimer放到另一个文件中，在Widget中使用WidgetTimer\*并声明WidgetTimer即可
+
+总的来说，在需要表现"is-implemented-in-terms-of"关系时。如果一个类需要访问基类的protected成员，或需要重新定义其一个或多个virtual函数，那么使用private继承。否则，在考虑过所有其它方案后，仍然认为private继承是最佳办法，才使用它
 
