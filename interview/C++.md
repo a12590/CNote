@@ -48,7 +48,7 @@
             - 虚继承（解决什么问题？(多继承中的子对象冗余)）
     * 11）多态的实现？
     * 12）[虚函数的实现原理？对类大小的影响？](https://www.cnblogs.com/malecrab/p/5572730.html)（vtbl是一个由函数指针组成的数组，无论pb指向哪种类型的对象，只要能够确定被调函数在虚函数中的偏移值，待运行时，能够确定具体类型，并能找到相应vptr，进一步能找出真正应该调用的函数）
-    * 13）为什么不要在构造、析构函数中调用虚函数？（子对象的base class构造期间，对象的类型是base class [《Effective C++:条款9》]
+    * 13）为什么不要在构造、析构函数中调用虚函数？（子对象的base class构造期间，对象的类型是UNIX环境高级编程.mdbase class [《Effective C++:条款9》]
     * 14）[虚函数被覆盖？]()
     * 15）virtual函数动态绑定，缺省参数值静态绑定（[《Effective C++:条款37》]
     * 16）纯虚函数与抽象基类（[纯虚函数与虚函数、一般成员函数的选择](../C++/EffectiveC++.md#条款34区分接口继承和实现继承)）
@@ -61,4 +61,22 @@
     * 23）[内联函数、构造函数、静态成员函数可以是虚函数吗？](https://www.nowcoder.com/ta/nine-chapter/review?page=24)
 * **四.内存管理**
     * 1）[C++内存分区](../C++/内存分区.md)
-    * 2）[new]
+    * 2）[new](https://github.com/a12590/CNote/blob/master/C++/C++对象模型.md#1new)和malloc的区别？（函数，运算符、类型安全、计算空间、步骤，[operator new的实现](../C++/C++对象模型.md#3operator-new和operator-delete的实现)）
+    * 3）[new[]与delete[]？](../C++/C++对象模型.md#4针对数组的new语意)（步骤：如何分配内存，构建对象、如何析构与释放内存？[构造与析构](../C++/C++对象模型.md#3对象数组)）
+    * 4）new带括号和不带的区别？（无自定义构造函数时，不带括号的new只分配内存，带括号的new会初始化为0）
+    * 5）new时内存不足？（[《Effective C++:条款49》]
+    * 6）[malloc](https://github.com/arkingc/note/blob/master/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/UNIX%E7%8E%AF%E5%A2%83%E9%AB%98%E7%BA%A7%E7%BC%96%E7%A8%8B.md#5%E5%AD%98%E5%82%A8%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D)、[calloc](https://github.com/arkingc/note/blob/master/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/UNIX%E7%8E%AF%E5%A2%83%E9%AB%98%E7%BA%A7%E7%BC%96%E7%A8%8B.md#5%E5%AD%98%E5%82%A8%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D)、[realloc](https://github.com/arkingc/note/blob/master/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/UNIX%E7%8E%AF%E5%A2%83%E9%AB%98%E7%BA%A7%E7%BC%96%E7%A8%8B.md#5%E5%AD%98%E5%82%A8%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D)、[alloca](https://blog.csdn.net/lan120576664/article/details/38078855)，malloc的实现？
+    * 7) 调用malloc函数之后，OS会马上分配内存空间吗？（不会，只会返回一个虚拟地址，待用户要使用内存时，OS发出一个缺页中断，此时，内存管理模块才会为程序分配真正的内存）
+    * 8）[delete](../C++/C++对象模型.md#1new)(步骤、delete与析构、可以delete空指针、可以delete动态const对象)
+    * 9）为什么要内存对齐？([性能原因、平台原因])(temp/C++.md/#1为什么要内存对齐)
+    * 10）[struct内存对齐方式？](temp/alignment/struct.cpp#L1)
+    * 11）如何取消内存对其？（添加预处理指令`#pragma pack(1)`）
+    * 12）什么是内存泄露？如何检测与避免？（Mtrace，[valgrind](temp/C++.md/#2valgrind)）
+    * 13）[智能指针相关](https://mubu.com/doc/BGwWx-huk)
+        * 种类、区别、原理、能否管理动态数组
+        * shared_ptr（使用、计数的变化，get()函数要注意什么）
+        * unique_ptr(如何转移控制权)
+        * [weak_ptr(特点、用途：可以解决shared_ptr的循环引用问题)]
+    (https://www.cnblogs.com/DswCnblog/p/5628314.html)
+            * 手写实现智能指针
+    * 14）[实现memcpy](../数据结构与算法/算法题总结.md#1实现memcpy)

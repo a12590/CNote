@@ -596,3 +596,89 @@ private:
 
 总的来说，在需要表现"is-implemented-in-terms-of"关系时。如果一个类需要访问基类的protected成员，或需要重新定义其一个或多个virtual函数，那么使用private继承。否则，在考虑过所有其它方案后，仍然认为private继承是最佳办法，才使用它
 
+## 条款49：了解new-handler的行为
+operator new抛出异常以反映一个未获满足的内存需求之前，会先调用一个客户指定的错误处理函数，new-handler，可以通过调用
+
+```
+namespace std{
+    typedef void (*new_handler)();
+    new_handler set_new_handler(new_handler p) throw();
+    //以上，throw()是一个异常声明，括号内无任何内容，表示不抛任何异常
+}
+```
+
+当operator new无法满足内存申请时，它会不断调用new-handler函数，直到找到足够内存。一个设计良好的new-handler函数必须做以下事情；
+
+* **让更多内存可被使用**：一个做法是程序一开始执行就分配一大块内存，而后当new-handler第一次被调用，将它们还给程序使用。这便造成operator new内的下一次内存分配动作可能成功
+* **安装另一个new-handler**：如果当前new-handler无法取得更多可用内存，可用安装另一个，下次operator new时会调用新的new-handler
+* **卸除new-handler**：将null指针传给set_new_handler
+* **抛出bad_alloc(或派生自bad_alloc)的异常**：这样的异常不会被operator new捕获，因此会被传播到内存索求处
+* **不返回**：通常调用abort或exit（abort会设置程序非正常退出，exit会设置程序正常退出，当存在未处理异常时C++会调用terminate， 它会回调由std::set_terminate设置的处理函数，默认会调用abort）
+
+### 实现class专属的new-handlers
+
+```c++
+class NewHandlerHolder{
+public:
+    explicit NewHandlerHolder(std::new_handler nh): handler(nh){}
+    ~NewHandlerHolder(){ std::set_new_handler(handler); }
+private:
+    std::new_handler handler;
+    NewHandlerHolder(const HandlerHolder&);     // 禁用拷贝构造函数
+    const NewHandlerHolder& operator=(const NewHandlerHolder&); // 禁用赋值运算符
+};
+
+template<typename T>
+class NewHandlerSupport{
+public:
+    static std::new_handler set_new_handler(std::new_handler p) throw();
+    static void * operator new(std::size_t size) throw(std::bad_alloc);
+private:
+    static std::new_handler current;   //class专属的new-handlers
+};
+
+//class专属的new-handlers初始化为null
+template<typename T>
+std::new_handler NewHandlerSupport<T>::current = 0;
+
+template<typename T>
+std::new_handler NewHandlerSupport<T>::set_new_handler(std::new_handler p) throw(){
+    std::new_handler old = current;
+    current = p;    //将class专属的new-handlers设置为新的new_handler
+    return old;     //返回旧的class专属的new-handlers
+}
+
+//new时会调用该operator new
+//它会设置全局的new-handlers为该class专属的new-handlers，然后调用全局operator new申请内存
+//h对象销毁后，其析构函数会将全局new-handlers恢复为调用前的状态
+template<typename T>
+void * NewHandlerSupport<T>::operator new(std::size_t size) throw(std::bad_alloc){
+    NewHandlerHolder h(std::set_new_handler(current));
+    return ::operator new(size);
+}
+```
+
+有了```NewHandlerSupport```这个模板基类后，给Widget添加”new-handler”支持只需要public继承即可:
+
+```c++
+class Widget: public NewHandlerSupport<Widget>{ ... };
+```
+
+```NewHandlerSupport```的实现和模板参数T完全无关，添加模板参数是因为handler是静态成员，这样编译器才能为每个类型生成一个handler实例
+
+### nothrow new
+
+1993年之前C++的operator new在失败时会返回null而不是抛出异常。如今的C++仍然支持这种nothrow的operator new
+
+```c++
+Widget *p1 = new Widget;    // 失败时抛出 bad_alloc 异常
+if(p1 == 0) ...             // 这个测试一定失败
+
+Widget *p2 = new (std::nothrow) Widget;
+if(p2 == 0) ...             // 这个测试可能成功
+```
+
+nothrow new只能保证所调用的nothrow版的operator new不抛出异常，但是构造也属于new的一个步骤，而它没法强制构造函数不抛出异常，所以并不能保证```new (std::nothrow) Widget```这样的表达式绝不导致异常
+
+<br>
+
