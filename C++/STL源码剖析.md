@@ -126,3 +126,35 @@ protected:
 * [insert(iterator position, size_type n, const T& x)](tass-sgi-stl-2.91.57-source/stl_vector.h#L361)
 
 **插入操作可能造成vector的3个指针重新配置，导致原有的迭代器全部失效**
+
+### 2.3 list的数据结构
+
+SGI list不仅是一个双向链表，还是一个环状双向链表。所以它只需要一个指针，便可完整表现整个链表：
+
+```
+```c++
+template <class T, class Alloc = alloc>
+class list {
+protected:
+    typedef __list_node<T> list_node;
+public:
+    typedef list_node* link_type;
+
+protected:
+    link_type node; //只要一个指针，便可表示整个环状双向链表
+};
+
+iterator begin() { return (link_type)((*node).next); }
+iterator end() { return node; }
+size_type size() const {
+    size_type result = 0;
+    distance(begin(), end(), result);
+    return result;
+}
+```
+
+<div align="center"> <img src="../pic/stl-4-5.png"/> </div>
+
+### 3.3 deque的数据结构
+
+deque采用一块所谓的map作为**主控（中控器）**。这里所谓的map是指一小块连续空间，其中每个元素都是一个指针，指向另一段（较大的）连续线性空间，称为缓冲区。
