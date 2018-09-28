@@ -93,4 +93,16 @@
     * 6）[vector的clear](../C++/tass-sgi-stl-2.91.57-source/stl_vector.h#L210)与[deque的clear](../C++/tass-sgi-stl-2.91.57-source/stl_deque.h#L774)（vector的erase和clear只会析构不会释放内存，deque的erase和clear不但会析构，还可能会释放缓冲区）
     * 7）[list的底层实现](../C++/STL源码剖析.md#23-list的数据结构)（迭代器类型为双向迭代器）
     * 8) [deque的底层实现](../C++/STL%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90.md#33-deque%E7%9A%84%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84)（迭代器类型为随机迭代器）
-
+    * 9）vector与deque的区别？（deque能以常数时间在首尾插入元素；deque没有capacity的概念）
+    * 10）[map](../C++/STL源码剖析.md#3map)、[set](../C++/STL源码剖析.md#2set)的实现原理（红黑树，对于set来说，key和value合一，value就是key，map的元素是一个pair，包括key和value、set不支持[]，map(不包括multimap)支持[]）
+    * 11）set(map)和multiset(multimap)的区别？(set不允许key重复，其insert操作调用rb_tree的insert_unique函数，multiset允许key重复，其insert操作调用rb_tree的insert_equal函数)
+    * 12）set(multiset)和map(multimap)的迭代器（由于set(multiset)key和value合一，迭代器不允许修改key、map(multimap)除了key有data，迭代器允许修改data不允许修改key）
+    * 13）map与[unordered_map](https://blog.csdn.net/hk2291976/article/details/51037095)的区别？（hash_map需要hash函数及等于函数，map只需小于函数）
+    * 14）set(multiset)和map(multimap)的迭代器[++操作、--操作的时间复杂度](../C++/STL源码剖析.md#12-rb-tree的迭代器)
+    * 15）空间分配器allocator
+            - [将new和delete的2阶段操作分离](../C++/STL源码剖析.md#二空间分配器)（construct和destroy负责内存分配？allocate和deallocate负责对象构造析构？）
+            - [SGI特殊的空间分配器——std::alloc](../C++/STL源码剖析.md#3sgi特殊的空间分配器stdalloc)（[对象构造与析构](../C++/STL源码剖析.md#31-对象构造与析构)
+            、内存分配与释放——[两级分配器](../C++/STL源码剖析.md#1两级分配器)
+                 + [第一级分配器](../C++/STL源码剖析.md#2第一级分配器__malloc_alloc_template)（如何仿真new-handler机制？不能直接用C++ new-handler，因为没有使用::operator new）
+                 + [第二级分配器](../C++/STL源码剖析.md#3第二级分配器__default_alloc_template)（为什么要二级分配器？内存池与16个free-list？空间分配和释放的步骤？）
+    * 16）[traits与迭代器相应类型](../C++/STL源码剖析.md#2traits编程技法)
