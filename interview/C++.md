@@ -106,3 +106,7 @@
                  + [第一级分配器](../C++/STL源码剖析.md#2第一级分配器__malloc_alloc_template)（如何仿真new-handler机制？不能直接用C++ new-handler，因为没有使用::operator new）
                  + [第二级分配器](../C++/STL源码剖析.md#3第二级分配器__default_alloc_template)（为什么要二级分配器？内存池与16个free-list？空间分配和释放的步骤？）
     * 16）[traits与迭代器相应类型](../C++/STL源码剖析.md#2traits编程技法)
+
+* **六.对象内存模型**
+    * **数据成员**
+        - [成员变量在类对象中的布局规则]()
